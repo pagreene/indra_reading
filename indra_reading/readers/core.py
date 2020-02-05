@@ -22,7 +22,7 @@ class ReadingData(object):
         which can be mapped back to that content.
     reader_class : type
         The class of the reader, a child of
-        `indra.tools.reading.readers.core.Reader`.
+        `indra_reading.readers.core.Reader`.
     reader_version : str
         A string identifying the version of the underlying nlp reader.
     reading_format : str

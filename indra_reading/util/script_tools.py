@@ -2,7 +2,7 @@
 import logging
 from argparse import ArgumentParser
 
-from indra.tools.reading.readers import get_reader_classes
+from indra_reading.readers import get_reader_classes
 
 logger = logging.getLogger(__name__)
 

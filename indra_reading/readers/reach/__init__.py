@@ -7,8 +7,8 @@ import subprocess
 from os import path, remove, environ, listdir
 
 from indra.config import get_config
-from indra.tools.reading.readers.util import get_dir, get_mem_total
-from indra.tools.reading.readers.core import Reader, ReadingError
+from indra_reading.readers.util import get_dir, get_mem_total
+from indra_reading.readers.core import Reader, ReadingError
 
 from indra.sources import reach
 

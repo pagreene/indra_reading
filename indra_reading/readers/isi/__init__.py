@@ -1,8 +1,8 @@
 import json
 import logging
 
-from indra.tools.reading.readers.core import Reader
-from indra.tools.reading.readers.util import get_dir
+from indra_reading.readers.core import Reader
+from indra_reading.readers.util import get_dir
 
 from indra.sources.isi.api import run_isi, get_isi_version
 from indra.sources.isi.processor import IsiProcessor

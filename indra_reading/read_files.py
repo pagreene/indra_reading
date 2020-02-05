@@ -5,9 +5,9 @@ import random
 import logging
 from os import path, listdir
 
-from indra.tools.reading.readers.core import dump_readings
-from indra.tools.reading.util.script_tools import get_parser
-from indra.tools.reading.readers import get_dir, get_reader_classes, Content
+from indra_reading.readers.core import dump_readings
+from indra_reading.util.script_tools import get_parser
+from indra_reading.readers import get_dir, get_reader_classes, Content
 
 logger = logging.getLogger(__name__)
 

@@ -8,14 +8,14 @@ from threading import Thread
 from datetime import datetime
 from indra.literature import elsevier_client as ec
 from indra.literature.elsevier_client import _ensure_api_keys
-from indra.tools.reading.readers import get_reader_classes
-from indra.tools.reading.util import get_s3_job_log_prefix, get_s3_and_job_prefixes
+from indra_reading.readers import get_reader_classes
+from indra_reading.util import get_s3_job_log_prefix, get_s3_and_job_prefixes
 from indra.util.aws import tag_instance, get_batch_command, kill_all, get_ids,\
     JobLog
 
 bucket_name = 'bigmech'
 
-logger = logging.getLogger('indra.tools.reading.submit_reading_pipeline')
+logger = logging.getLogger('indra_reading.submit_reading_pipeline')
 
 
 class BatchReadingError(Exception):
@@ -604,7 +604,7 @@ class PmidSubmitter(Submitter):
                      'run_db_reading_isi_jobdef': ['isi']}
 
     def _get_base(self, job_name, start_ix, end_ix):
-        base = ['python', '-m', 'indra.tools.reading.pmid_reading.read_pmids_aws',
+        base = ['python', '-m', 'indra_reading.pmid_reading.read_pmids_aws',
                 self.job_base, '/tmp', '16', str(start_ix), str(end_ix)]
         return base
 
@@ -634,7 +634,7 @@ class PmidSubmitter(Submitter):
 
         job_name = '%s_combine_reading_results' % self.job_base
         command_list = get_batch_command(
-            ['python', '-m', 'indra.tools.reading.assemble_reading_stmts_aws',
+            ['python', '-m', 'indra_reading.assemble_reading_stmts_aws',
              self.job_base, '-r'] + self.readers,
             purpose='pmid_reading',
             project=self.project_name
@@ -761,7 +761,7 @@ def create_parser():
 
     # Make non_db_parser and get subparsers
     parser = argparse.ArgumentParser(
-        'indra.tools.reading.submit_reading_pipeline.py',
+        'indra_reading.submit_reading_pipeline.py',
         description=('Run reading by collecting content, and save as pickles. '
                      'This option requires that ids are given as a list of '
                      'pmids, one line per pmid.'),

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     else:
         force_fulltext = False
 
-    logger = logging.getLogger('indra.tools.reading.starcluster_reading.'
+    logger = logging.getLogger('indra_reading.starcluster_reading.'
                                'upload_content')
 
     pmid_list = sys.argv[1]

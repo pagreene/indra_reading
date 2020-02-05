@@ -59,7 +59,7 @@ if __name__ == '__main__':
             '-b', 'y', '-V', '-cwd', '-N', READING_JOB_NAME, '-pe', 'orte',
             str(args.num_cores),
             'python',
-            '-m', 'indra.tools.reading.pmid_reading.read_pmids',
+            '-m', 'indra_reading.pmid_reading.read_pmids',
             '-n', str(args.num_cores),
             '-s', str(node_start_ix),
             '-e', str(node_end_ix),
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         cmd_list = [
             'qsub', '-b', 'y', '-V', '-cwd', '-hold_jid',
             READING_JOB_NAME, '-N', PROCESS_JOB_NAME, 'python', '-m',
-            'indra.tools.reading.starcluster_reading.process_reach_from_s3', args.pmid_list,
+            'indra_reading.starcluster_reading.process_reach_from_s3', args.pmid_list,
             str(core_start_ix), str(core_end_ix)
             ]
         print(' '.join(cmd_list))
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     cmd_list = ['qsub', '-b', 'y', '-V', '-cwd', '-hold_jid', PROCESS_JOB_NAME,
                 '-N', ASSEMBLE_JOB_NAME, '-m', 'aes', '-M',
                 'bachmanjohn@gmail.com', 'python', '-m',
-                'indra.tools.reading.assemble_reading_stmts',
+                'indra_reading.assemble_reading_stmts',
                 'reach_stmts_*.pkl']
     print(' '.join(cmd_list))
     subprocess.call(cmd_list)

@@ -6,9 +6,9 @@ from io import BytesIO
 from os import path, remove
 from multiprocessing import Pool
 
-from indra.tools.reading.readers.core import Reader, ReadingError
-from indra.tools.reading.readers.content import Content
-from indra.tools.reading.readers.util import get_time_stamp
+from indra_reading.readers.core import Reader, ReadingError
+from indra_reading.readers.content import Content
+from indra_reading.readers.util import get_time_stamp
 
 from indra.sources import sparser
 

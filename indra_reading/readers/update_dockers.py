@@ -7,7 +7,7 @@ from os import path, listdir
 from io import BytesIO
 from zipfile import ZipFile
 
-from indra.tools.reading.readers import get_reader_classes
+from indra_reading.readers import get_reader_classes
 
 HERE = path.dirname(path.abspath(__file__))
 DOCKER_TEMPLATE_DIR = path.join(HERE, 'dockerfile_fragments')
