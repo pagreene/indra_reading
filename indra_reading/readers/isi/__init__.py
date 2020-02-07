@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class IsiReader(Reader):
+    """Wrapper for the ISI reader."""
 
     name = 'ISI'
 

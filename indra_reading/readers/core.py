@@ -131,6 +131,7 @@ class Reader(object):
                % (self.name, self.n_proc)
 
     def reset(self):
+        """Reset the attributes of the reader to start another reading."""
         self.results = []
         self.id_maps = {}
         self.content_ids_read = []
@@ -170,6 +171,10 @@ class Reader(object):
 
     @classmethod
     def get_version(cls):
+        """Get the current version of the reader
+
+        This method must be implemented by child.
+        """
         raise NotImplementedError()
 
     def _iter_content(self, read_list):
@@ -178,7 +183,7 @@ class Reader(object):
             yield content
 
     def read(self, read_list, verbose=False, log=False):
-        "Read a list of items and return a dict of output files."
+        """Read a list of items and return a dict of output files."""
         # Place a timer on the whole reading process.
         start = datetime.now()
         ret = self._read(self._iter_content(read_list), verbose, log)
@@ -208,10 +213,15 @@ class Reader(object):
         return ret
 
     def _read(self, content_iter, verbose=False, log=False):
+        """Here is where the child defines the details of how it reads."""
         raise NotImplementedError()
 
     @staticmethod
     def get_processor(content):
+        """Get the appropriate processor class from INDRA.
+
+        Implemented by child.
+        """
         raise NotImplementedError()
 
 

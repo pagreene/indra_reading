@@ -122,12 +122,7 @@ class TripsStartupError(Exception):
 
 
 class TripsReader(Reader):
-    """A stand-in for TRIPS reading.
-
-    Currently, we do not run TRIPS (more specifically DRUM) regularly at large
-    scales, however on occasion we have outputs from TRIPS that were generated
-    a while ago.
-    """
+    """A wrapper around the TRIPS reading system."""
     name = 'TRIPS'
     result_format = 'xml'
 
@@ -207,6 +202,7 @@ class TripsReader(Reader):
 
     @classmethod
     def get_version(cls):
+        """Determine the current version of TRIPS being used."""
         git_date_cmd = ['git', 'log', '-1', '--format=%cd']
         if os.environ.get("IN_TRIPS_DOCKER", "false") == "true":
             curdir = os.getcwd()
