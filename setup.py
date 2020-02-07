@@ -35,7 +35,7 @@ def main():
                     'indra_reading.readers.reach',
                     'indra_reading.readers.sparser',
                     'indra_reading.readers.trips', 'indra_reading.scripts',
-                    'indra_reading.util'],
+                    'indra_reading.util', 'indra_reading.tests'],
           install_requires=install_list,
           extras_require=extras_require,
           include_package_data=True,
