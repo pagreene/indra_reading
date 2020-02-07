@@ -22,7 +22,7 @@ from platform import system
 import logging
 from indra import get_config
 
-logger = logging.getLogger('indra_reading.pmid_reading.read_pmids')
+logger = logging.getLogger('indra_reading.scripts.pmid_reading.read_pmids')
 
 
 from indra.sources import reach

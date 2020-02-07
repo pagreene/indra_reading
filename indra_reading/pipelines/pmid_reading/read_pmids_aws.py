@@ -1,6 +1,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import dict, str
-from indra_reading.pmid_reading.read_pmids import READER_DICT
+from indra_reading.scripts.pmid_reading.read_pmids import READER_DICT
 from datetime import datetime
 from indra import get_config
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         help='Choose which reader(s) to use.'
         )
     args = parser.parse_args()
-    from indra_reading.pmid_reading import read_pmids as read
+    from indra_reading.scripts.pmid_reading import read_pmids as read
     import boto3
     import botocore
     import os
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     import sys
 
     logger = \
-        logging.getLogger('indra_reading.pmid_reading.read_pmids_aws')
+        logging.getLogger('indra_reading.scripts.pmid_reading.read_pmids_aws')
 
     # Setting default force read/fulltext parameters
     force_read = args.force_read
