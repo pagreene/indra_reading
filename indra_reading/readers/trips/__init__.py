@@ -121,6 +121,19 @@ class TripsStartupError(Exception):
     pass
 
 
+def _kill_trips():
+    """Kill all running instances of trips-drum, indiscriminately.
+
+    Specifically, this runs the equivalent of the two bash commands:
+    $ pkill -f trips-drum
+    $ pkill -f lighttpd
+
+    Killing the trips-drum code and the hosting service respectively.
+    """
+    sp.run(['pkill', '-f', 'trips-drum'])
+    sp.run(['pkill', '-f', 'trips-drum'])
+
+
 class TripsReader(Reader):
     """A wrapper around the TRIPS reading system."""
     name = 'TRIPS'
@@ -188,7 +201,7 @@ class TripsReader(Reader):
 
         # Stop TRIPS if it hasn't stopped already.
         logger.info("Killing TRIPS")
-        p.kill()  # Send signal to the process to stop
+        _kill_trips()  # Kill all instances of trips-drum.
 
         logger.info("Signalling observation loop to stop.")
         self.stopping = True  # Sends signal to the loop to stop
