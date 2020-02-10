@@ -31,7 +31,7 @@ RUN echo "Cloning" https://github.com/$INDRA_USER/indra.git && \
     cd ..
 
 # Install indra_reading
-RUN git clone https://github.com/indralab/indra_reading.git && \
+RUN git clone https://github.com/$READING_USER/indra_reading.git && \
     cd indra_reading && \
     git checkout $READING_BRANCH && \
     echo $READING_BRANCH && \
