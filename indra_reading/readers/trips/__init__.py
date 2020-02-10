@@ -167,15 +167,19 @@ class TripsReader(Reader):
         self.running = False
 
     def _read(self, content_iter, verbose=False, log=False, n_per_proc=None):
-        # Start trips running
-        p, service_host = _start_trips()
-
-        # Set up the trips monitor
-        th = threading.Thread(target=self._monitor_trips_service, args=[p])
-        th.start()
-
         # Process all the content.
+        trips_started = False
         for content in content_iter:
+            # Only start the service if there is at least SOME content to read.
+            if not trips_started:
+                # Start trips running
+                p, service_host = _start_trips()
+
+                # Set up the trips monitor
+                th = threading.Thread(target=self._monitor_trips_service, args=[p])
+                th.start()
+                trips_started = True
+
             if not self.running:
                 logger.error("Breaking loop: trips is down.")
                 break
