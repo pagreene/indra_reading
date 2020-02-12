@@ -168,6 +168,7 @@ class TripsReader(Reader):
 
     def _read(self, content_iter, verbose=False, log=False, n_per_proc=None):
         # Process all the content.
+        th = None
         trips_started = False
         for content in content_iter:
             # Only start the service if there is at least SOME content to read.
@@ -210,10 +211,11 @@ class TripsReader(Reader):
         logger.info("Signalling observation loop to stop.")
         self.stopping = True  # Sends signal to the loop to stop
 
-        logger.info("Waiting for observation loop thread to join.")
-        th.join(timeout=5)
-        if th.is_alive():
-            logger.warning("Thread did not end, TRIPS is still running.")
+        if th is not None:
+            logger.info("Waiting for observation loop thread to join.")
+            th.join(timeout=5)
+            if th.is_alive():
+                logger.warning("Thread did not end, TRIPS is still running.")
 
         return self.results
 
