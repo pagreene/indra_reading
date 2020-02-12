@@ -42,6 +42,50 @@ class TripsStartupError(Exception):
     pass
 
 
+def _start_trips():
+    # Start trips running
+    for port in find_free_ports():
+        port_failure = False
+        if os.environ.get("IN_TRIPS_DOCKER", 'false') == 'true':
+            logger.info("Attempting to starting up a TRIPS service from "
+                        "within the docker on port %d." % port)
+            p = sp.Popen([expanduser('~/startup_trips.sh'), str(port)],
+                         stdout=sp.PIPE, stderr=sp.STDOUT)
+        else:
+            logger.info("Starting up a TRIPS service using drum docker.")
+            p = sp.Popen(['docker', 'run', '-it', '-p', '%d:80' % port,
+                          '--entrypoint', '/sw/drum/bin/startup.sh',
+                          DRUM_DOCKER],
+                         stdout=sp.PIPE, stderr=sp.STDOUT)
+        service_host = 'http://localhost:%d/cgi/' % port
+
+        # Wait for the service to be ready
+        for log_line in _tail_trips(p):
+            if 'can\'t bind to port' in 'log_line':
+                port_failure = True
+            if log_line == 'Ready':
+                # TRIPS is ready to read and we can continue on.
+                break
+        else:
+            logger.error("TRIPS failed to start on port %d." % port)
+            if port_failure:
+                # If the failure due to wrong port, try another port.
+                continue
+            else:
+                # Otherwise give up.
+                raise TripsStartupError("Trips failed to start up.")
+
+        # The above for-loop existed without going to else, indicating
+        # successful startup.
+        break
+    else:
+        # We exhausted all possible ports.
+        raise TripsStartupError("Could not start TRIPS, all ports appear "
+                                "to be busy.")
+    logger.info("Service has started up.")
+    return p, service_host
+
+
 def _kill_trips():
     """Kill all running instances of trips-drum, indiscriminately.
 
@@ -94,49 +138,11 @@ class TripsReader(Reader):
         trips_started = False
         for content in content_iter:
             if not trips_started:
-                # Start trips running
-                for port in find_free_ports():
-                    port_failure = False
-                    if os.environ.get("IN_TRIPS_DOCKER", 'false') == 'true':
-                        logger.info("Attempting to starting up a TRIPS service from "
-                                    "within the docker on port %d." % port)
-                        p = sp.Popen([expanduser('~/startup_trips.sh'), str(port)],
-                                     stdout=sp.PIPE, stderr=sp.STDOUT)
-                    else:
-                        logger.info("Starting up a TRIPS service using drum docker.")
-                        p = sp.Popen(['docker', 'run', '-it', '-p', '%d:80' % port,
-                                      '--entrypoint', '/sw/drum/bin/startup.sh',
-                                      DRUM_DOCKER],
-                                     stdout=sp.PIPE, stderr=sp.STDOUT)
-                    service_host = 'http://localhost:%d/cgi/' % port
-
-                    # Wait for the service to be ready
-                    for log_line in _tail_trips(p):
-                        if 'can\'t bind to port' in 'log_line':
-                            port_failure = True
-                        if log_line == 'Ready':
-                            # TRIPS is ready to read and we can continue on.
-                            break
-                    else:
-                        logger.error("TRIPS failed to start on port %d." % port)
-                        if port_failure:
-                            # If the failure due to wrong port, try another port.
-                            continue
-                        else:
-                            # Otherwise give up.
-                            raise TripsStartupError("Trips failed to start up.")
-
-                    # The above for-loop existed without going to else, indicating
-                    # successful startup.
-                    break
-                else:
-                    # We exhausted all possible ports.
-                    raise TripsStartupError("Could not start TRIPS, all ports appear "
-                                            "to be busy.")
-                logger.info("Service has started up.")
+                p, service_host = _start_trips()
 
                 # Set up the trips monitor
-                th = threading.Thread(target=self._monitor_trips_service, args=[p])
+                th = threading.Thread(target=self._monitor_trips_service,
+                                      args=[p])
                 th.start()
                 trips_started = True
 
