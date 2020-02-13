@@ -393,7 +393,7 @@ class Submitter(object):
     _purpose = NotImplemented
 
     # The job queue on which these jobs will be submitted.
-    _job_queue = NotImplemented
+    _job_queue_dict = NotImplemented
 
     # A dictionary of job_def names as keys, with a list of applicable readers
     # as the values.
@@ -414,8 +414,11 @@ class Submitter(object):
         self.options = options
         self.ids_per_job = None
         self.running = None
-        self.monitor = BatchMonitor(self._job_queue, self.job_list,
-                                    self.job_base, self.s3_base)
+        self.monitors = {}
+        for queue_name in self._job_queue_dict.keys():
+            self.monitors[queue_name] = \
+                BatchMonitor(queue_name, self.job_list, self.job_base,
+                             self.s3_base)
         return
 
     def set_options(self, **kwargs):
@@ -425,21 +428,32 @@ class Submitter(object):
         return
 
     def _iter_commands(self, start_ix, end_ix):
+        # Group the readings into batches that share both a queue and a job_def.
+        all_submitted_readers = set()
         for job_def, reader_list in self._job_def_dict.items():
-            reader_list = [r for r in reader_list if r in self.readers]
-            if not reader_list:
-                continue
+            for job_queue, jq_reader_list in self._job_queue_dict.item():
 
-            job_name = '%s_%d_%d' % (self.job_base, start_ix, end_ix)
-            job_name += '_' + '_'.join(reader_list)
-            cmd = self._get_base(job_name, start_ix, end_ix)
-            cmd += ['-r'] + reader_list
-            cmd += self._get_extensions()
-            for arg in cmd:
-                if not isinstance(arg, str):
-                    logger.warning("Argument of command is not a string: %s"
-                               % repr(arg))
-            yield job_name, cmd, job_def
+                joined_reader_set = set(reader_list) & set(jq_reader_list)
+                reader_list = [r for r in joined_reader_set
+                               if r in self.readers]
+                all_submitted_readers |= joined_reader_set
+                if not reader_list:
+                    continue
+
+                job_name = '%s_%d_%d' % (self.job_base, start_ix, end_ix)
+                job_name += '_' + '_'.join(reader_list)
+                cmd = self._get_base(job_name, start_ix, end_ix)
+                cmd += ['-r'] + reader_list
+                cmd += self._get_extensions()
+                for arg in cmd:
+                    if not isinstance(arg, str):
+                        logger.warning("Argument of command is not a string: %s"
+                                       % repr(arg))
+                yield job_name, cmd, job_def, job_queue
+
+        if all_submitted_readers != set(self.readers):
+            logger.warning("Some readers were not submitted because they did"
+                           "not have both a job_def and queue assignment.")
 
     def _get_base(self, job_name, start_ix, end_ix):
         raise NotImplementedError
@@ -514,7 +528,7 @@ class Submitter(object):
 
             # Enter a command for reach job
             command_iter = self._iter_commands(job_start_ix, job_end_ix)
-            for job_name, cmd, job_def in command_iter:
+            for job_name, cmd, job_def, job_queue in command_iter:
                 command_list = get_batch_command(cmd, purpose=self._purpose,
                                                  project=self.project_name)
                 logger.info('Command list: %s' % str(command_list))
@@ -522,7 +536,7 @@ class Submitter(object):
                 # Submit the job.
                 job_info = batch_client.submit_job(
                     jobName=job_name,
-                    jobQueue=self._job_queue,
+                    jobQueue=job_queue,
                     jobDefinition=job_def,
                     containerOverrides={
                         'environment': environment_vars,
@@ -543,21 +557,39 @@ class Submitter(object):
                        kill_on_timeout=False, stash_log_method=None,
                        tag_instances=False, kill_on_exception=True, **kwargs):
         """This provides shortcut access to the wait_for_complete_function."""
-        try:
-            res = self.monitor.watch_and_wait(
-                poll_interval=poll_interval, idle_log_timeout=idle_log_timeout,
-                kill_on_log_timeout=kill_on_timeout,
-                stash_log_method=stash_log_method, tag_instances=tag_instances,
-                **kwargs
-            )
-        except (BaseException, KeyboardInterrupt) as e:
-            logger.error("Exception in wait_for_complete:")
-            logger.exception(e)
-            if kill_on_exception:
-                logger.info("Killing all my jobs...")
-                kill_all(self._job_queue, kill_list=self.job_list,
-                         reason='Exception in monitor, jobs aborted.')
-            raise e
+        def wait_thread(monitor):
+            try:
+                res = monitor.watch_and_wait(
+                    poll_interval=poll_interval,
+                    idle_log_timeout=idle_log_timeout,
+                    kill_on_log_timeout=kill_on_timeout,
+                    stash_log_method=stash_log_method,
+                    tag_instances=tag_instances,
+                    **kwargs
+                )
+            except (BaseException, KeyboardInterrupt) as e:
+                logger.error("Exception in wait_for_complete:")
+                logger.exception(e)
+                if kill_on_exception:
+                    logger.info("Killing all my jobs...")
+                    kill_all(monitor.queue_name, kill_list=self.job_list,
+                             reason='Exception in monitor, jobs aborted.')
+                raise e
+            return res
+
+        res = []
+        if len(self.monitors) == 0:
+            res.append(wait_thread(self.monitors[0]))
+        else:
+            threads = []
+            for monitor in self.monitors:
+                th = Thread(target=wait_thread, args=[monitor])
+                th.start()
+                threads.append(th)
+
+            for th in threads:
+                th.join()
+
         return res
 
     def run(self, input_fname, ids_per_job, stagger=0, **wait_params):
