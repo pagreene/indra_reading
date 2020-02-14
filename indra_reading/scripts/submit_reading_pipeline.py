@@ -560,7 +560,7 @@ class Submitter(object):
         """This provides shortcut access to the wait_for_complete_function."""
         def wait_thread(monitor):
             try:
-                res = monitor.watch_and_wait(
+                wait_res = monitor.watch_and_wait(
                     poll_interval=poll_interval,
                     idle_log_timeout=idle_log_timeout,
                     kill_on_log_timeout=kill_on_timeout,
@@ -576,15 +576,20 @@ class Submitter(object):
                     kill_all(monitor.queue_name, kill_list=self.job_list,
                              reason='Exception in monitor, jobs aborted.')
                 raise e
-            return res
+            return wait_res
+
+        active_monitors = [monitor for monitor in self.monitors.values()
+                           if monitor.job_list]
 
         res = []
-        if len(self.monitors) == 0:
-            res.append(wait_thread(self.monitors[0]))
+        logger.info("Running %d active/%d monitors."
+                    % (len(active_monitors), len(self.monitors)))
+        if len(active_monitors) == 0:
+            res.append(wait_thread(active_monitors[0]))
         else:
             threads = []
-            for monitor in self.monitors:
-                th = Thread(target=wait_thread, args=[monitor])
+            for m in active_monitors:
+                th = Thread(target=wait_thread, args=[m])
                 th.start()
                 threads.append(th)
 
