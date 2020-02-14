@@ -431,7 +431,7 @@ class Submitter(object):
         # Group the readings into batches that share both a queue and a job_def.
         all_submitted_readers = set()
         for job_def, reader_list in self._job_def_dict.items():
-            for job_queue, jq_reader_list in self._job_queue_dict.item():
+            for job_queue, jq_reader_list in self._job_queue_dict.items():
 
                 joined_reader_set = set(reader_list) & set(jq_reader_list)
                 reader_list = [r for r in joined_reader_set
