@@ -410,15 +410,15 @@ class Submitter(object):
         else:
             self.readers = readers
         self.project_name = project_name
-        self.job_list = []
+        self.job_lists = {q_name: [] for q_name in self._job_queue_dict.keys()}
         self.options = options
         self.ids_per_job = None
         self.running = None
         self.monitors = {}
         for queue_name in self._job_queue_dict.keys():
             self.monitors[queue_name] = \
-                BatchMonitor(queue_name, self.job_list, self.job_base,
-                             self.s3_base)
+                BatchMonitor(queue_name, self.job_lists[queue_name],
+                             self.job_base, self.s3_base)
         return
 
     def set_options(self, **kwargs):
@@ -482,8 +482,9 @@ class Submitter(object):
 
         Returns
         -------
-        job_list : list[str]
-            A list of job id strings.
+        job_lists : dict{queue_name: list[str]}
+            A dict of lists of job id strings, keyed by the name of each queue
+            used.
         """
         # stash this for later.
         self.ids_per_job = ids_per_job
@@ -546,12 +547,12 @@ class Submitter(object):
 
                 # Record the job id.
                 logger.info("submitted...")
-                self.job_list.append({k: job_info[k]
-                                      for k in ['jobId', 'jobName']})
+                self.job_lists[job_queue].append({k: job_info[k]
+                                                 for k in ['jobId', 'jobName']})
                 logger.info("Sleeping for %d seconds..." % stagger)
                 sleep(stagger)
 
-        return self.job_list
+        return self.job_lists
 
     def watch_and_wait(self, poll_interval=10, idle_log_timeout=None,
                        kill_on_timeout=False, stash_log_method=None,
