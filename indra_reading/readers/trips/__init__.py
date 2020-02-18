@@ -38,73 +38,42 @@ def find_free_ports():
                 yield port
 
 
-def _wait_for_trips_startup(p):
-    # Wait for the service to be ready
-    port_failure = False
-    for log_line in _tail_trips(p):
-        if 'can\'t bind to port' in log_line:
-            port_failure = True
-        if log_line == 'Ready':
-            # TRIPS is ready to read and we can continue on.
-            break
-    else:
-        if port_failure:
-            return "PORT"
-        else:
-            return "UNKNOWN"
-    return None
+class TripsStartupError(Exception):
+    pass
 
 
 def _start_trips():
-    """Start up an instance of TRIPS."""
+    # Start trips running
     for port in find_free_ports():
+        port_failure = False
         if os.environ.get("IN_TRIPS_DOCKER", 'false') == 'true':
-            for trips_port in find_free_ports():
-                if trips_port == port:
-                    # Obviously don't try the same port for both.
-                    continue
-                logger.info("Attempting to starting up a TRIPS service "
-                            "from within the docker on outward facing "
-                            "port %d and internal port %d."
-                            % (port, trips_port))
-                p = sp.Popen([expanduser('~/startup_trips.sh'), str(port),
-                              str(trips_port)],
-                             stdout=sp.PIPE, stderr=sp.STDOUT)
-
-                # Wait for TRIPS to start.
-                res = _wait_for_trips_startup(p)
-                if res == "PORT":
-                    # External port failed.
-                    logger.error("In-docker TRIPS failed to start service "
-                                 "with external port %s" % port)
-                    break
-                elif res is not None:
-                    # Something else failed. (Try another internal port)
-                    logger.error("In-docker TRIPS failed to start.")
-                    continue
-
-                # Everything seems to have worked as expected.
-                break
-            else:
-                # We tried every internal port, without success or explicit
-                # external port error.
-                raise TripsStartupError("Trips failed to start up on any "
-                                        "internal port, no apparent "
-                                        "external port errors.")
+            logger.info("Attempting to starting up a TRIPS service from "
+                        "within the docker on port %d." % port)
+            p = sp.Popen([expanduser('~/startup_trips.sh'), str(port)],
+                         stdout=sp.PIPE, stderr=sp.STDOUT)
         else:
             logger.info("Starting up a TRIPS service using drum docker.")
             p = sp.Popen(['docker', 'run', '-it', '-p', '%d:80' % port,
                           '--entrypoint', '/sw/drum/bin/startup.sh',
                           DRUM_DOCKER],
                          stdout=sp.PIPE, stderr=sp.STDOUT)
-            res = _wait_for_trips_startup(p)
-            if res == "PORT":
-                logger.error("Service failed to start on port %s." % port)
-                continue
-            elif res:
-                raise TripsStartupError("Trips failed to start up. "
-                                        "Reason: %s" % res)
         service_host = 'http://localhost:%d/cgi/' % port
+
+        # Wait for the service to be ready
+        for log_line in _tail_trips(p):
+            if 'can\'t bind to port' in 'log_line':
+                port_failure = True
+            if log_line == 'Ready':
+                # TRIPS is ready to read and we can continue on.
+                break
+        else:
+            logger.error("TRIPS failed to start on port %d." % port)
+            if port_failure:
+                # If the failure due to wrong port, try another port.
+                continue
+            else:
+                # Otherwise give up.
+                raise TripsStartupError("Trips failed to start up.")
 
         # The above for-loop existed without going to else, indicating
         # successful startup.
@@ -117,8 +86,17 @@ def _start_trips():
     return p, service_host
 
 
-class TripsStartupError(Exception):
-    pass
+def _kill_trips():
+    """Kill all running instances of trips-drum, indiscriminately.
+
+    Specifically, this runs the equivalent of the two bash commands:
+    $ pkill -f trips-drum
+    $ pkill -f lighttpd
+
+    Killing the trips-drum code and the hosting service respectively.
+    """
+    sp.run(['pkill', '-f', 'trips-drum'])
+    sp.run(['pkill', '-f', 'trips-drum'])
 
 
 class TripsReader(Reader):
@@ -154,15 +132,20 @@ class TripsReader(Reader):
         self.running = False
 
     def _read(self, content_iter, verbose=False, log=False, n_per_proc=None):
-        # Start trips running
-        p, service_host = _start_trips()
-
-        # Set up the trips monitor
-        th = threading.Thread(target=self._monitor_trips_service, args=[p])
-        th.start()
 
         # Process all the content.
+        th = None
+        trips_started = False
         for content in content_iter:
+            if not trips_started:
+                p, service_host = _start_trips()
+
+                # Set up the trips monitor
+                th = threading.Thread(target=self._monitor_trips_service,
+                                      args=[p])
+                th.start()
+                trips_started = True
+
             if not self.running:
                 logger.error("Breaking loop: trips is down.")
                 break
@@ -188,15 +171,16 @@ class TripsReader(Reader):
 
         # Stop TRIPS if it hasn't stopped already.
         logger.info("Killing TRIPS")
-        p.kill()  # Send signal to the process to stop
+        _kill_trips()  # Kill all instances of trips-drum.
 
         logger.info("Signalling observation loop to stop.")
         self.stopping = True  # Sends signal to the loop to stop
 
-        logger.info("Waiting for observation loop thread to join.")
-        th.join(timeout=5)
-        if th.is_alive():
-            logger.warning("Thread did not end, TRIPS is still running.")
+        if th is not None:
+            logger.info("Waiting for observation loop thread to join.")
+            th.join(timeout=5)
+            if th.is_alive():
+                logger.warning("Thread did not end, TRIPS is still running.")
 
         return self.results
 
