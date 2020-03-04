@@ -128,16 +128,7 @@ class ReachReader(Reader):
                 continue
 
             # Look for things that are more like file names, rather than ids.
-            cid = content.get_id()
-            if isinstance(cid, str) and re.match('^\w*?\d+$', cid) is None:
-                new_id = 'FILE%06d' % i
-                i += 1
-                self.id_maps[new_id] = cid
-                content.change_id(new_id)
-                new_fpath = content.copy_to(self.input_dir)
-            else:
-                # Put the content in the appropriate directory.
-                new_fpath = content.copy_to(self.input_dir)
+            new_fpath = content.copy_to(self.input_dir)
             self.num_input += 1
             logger.debug('%s saved for reading by reach.'
                          % new_fpath)
