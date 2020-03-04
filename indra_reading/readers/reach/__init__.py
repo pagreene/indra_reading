@@ -118,7 +118,6 @@ class ReachReader(Reader):
     def prep_input(self, content_iter):
         """Apply the readers to the content."""
         logger.info("Prepping input.")
-        i = 0
         for content in content_iter:
             # Check the quality of the text, and skip if there are any issues.
             quality_issue = self._check_content(content.get_text())
@@ -127,7 +126,6 @@ class ReachReader(Reader):
                                % (content.get_id(), quality_issue))
                 continue
 
-            # Look for things that are more like file names, rather than ids.
             new_fpath = content.copy_to(self.input_dir)
             self.num_input += 1
             logger.debug('%s saved for reading by reach.'
