@@ -782,6 +782,12 @@ def create_read_parser():
         type=int,
         help='Number of PMIDs to read for each AWS Batch job.'
     )
+    parent_read_parser.add_argument(
+        '--stagger',
+        default=0,
+        type=int,
+        help="Set the amount of time to wait between job submissions in secs."
+    )
     ''' Not currently supported.
     parent_read_parser.add_argument(
         '--num_tries',
