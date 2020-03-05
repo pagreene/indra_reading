@@ -415,7 +415,11 @@ class Submitter(object):
         self.ids_per_job = None
         self.running = None
         self.monitors = {}
-        for queue_name in self._job_queue_dict.keys():
+        for queue_name, reader_list in self._job_queue_dict.items():
+            if not any(reader in reader_list for reader in self.readers):
+                logger.info("Queue %s will not be used, no relevant readers "
+                            "selected." % queue_name)
+                continue
             self.monitors[queue_name] = \
                 BatchMonitor(queue_name, self.job_lists[queue_name],
                              self.job_base, self.s3_base)
@@ -578,17 +582,14 @@ class Submitter(object):
                 raise e
             return wait_res
 
-        active_monitors = [monitor for monitor in self.monitors.values()
-                           if monitor.job_list]
-
         res = []
         logger.info("Running %d active/%d monitors."
-                    % (len(active_monitors), len(self.monitors)))
-        if len(active_monitors) == 0:
-            res.append(wait_thread(active_monitors[0]))
+                    % (len(self.monitors), len(self._job_queue_dict)))
+        if len(self.monitors) == 1:
+            res.append(wait_thread(list(self.monitors.values())[0]))
         else:
             threads = []
-            for m in active_monitors:
+            for m in self.monitors.values():
                 th = Thread(target=wait_thread, args=[m])
                 th.start()
                 threads.append(th)
