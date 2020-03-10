@@ -59,7 +59,15 @@ class BatchMonitor(object):
         self.batch_client = boto3.client('batch')
 
         self.job_id_list = None
+        self._submitter_submitting = False
         return
+
+    def set_submitting(self, status):
+        logger.info("%s monitor received that submission status is %s"
+                    % (self.queue_name, status))
+        if not isinstance(status, bool):
+            raise ValueError("`status` must be a bool.")
+        self._submitter_submitting = status
 
     def watch_and_wait(self, poll_interval=10, idle_log_timeout=None,
                        kill_on_log_timeout=False, stash_log_method=None,
@@ -152,8 +160,13 @@ class BatchMonitor(object):
 
             # Check for end-conditions.
             if found_a_job or not wait_for_first_job:
-                if self.job_id_list:
+                if self._submitter_submitting:
+                    # Wait for the submitter to be done submitting.
+                    logger.info("Submitter is submitting...")
+                elif self.job_id_list:
                     if (len(failed) + len(done)) == len(self.job_id_list):
+                        logger.info("Submitter status is : %s"
+                                    % self._submitter_submitting)
                         logger.info("Total failed and done equals number of "
                                     "original tracked jobs. Ending.")
                         ret = 0
@@ -414,8 +427,13 @@ class Submitter(object):
         self.options = options
         self.ids_per_job = None
         self.running = None
+        self.submitting = False
         self.monitors = {}
-        for queue_name in self._job_queue_dict.keys():
+        for queue_name, reader_list in self._job_queue_dict.items():
+            if not any(reader in reader_list for reader in self.readers):
+                logger.info("Queue %s will not be used, no relevant readers "
+                            "selected." % queue_name)
+                continue
             self.monitors[queue_name] = \
                 BatchMonitor(queue_name, self.job_lists[queue_name],
                              self.job_base, self.s3_base)
@@ -460,6 +478,11 @@ class Submitter(object):
 
     def _get_extensions(self):
         return []
+
+    def set_monitors_submitting(self, status):
+        logger.info("Telling monitors submission status is %s." % status)
+        for monitor in self.monitors.values():
+            monitor.set_submitting(status)
 
     def submit_reading(self, input_fname, start_ix, end_ix, ids_per_job,
                        num_tries=1, stagger=0):
@@ -515,42 +538,47 @@ class Submitter(object):
         elif not self.running:
             return None
 
-        for job_start_ix in range(start_ix, end_ix, ids_per_job):
+        self.set_monitors_submitting(True)
+        try:
+            for job_start_ix in range(start_ix, end_ix, ids_per_job):
 
-            # Check for a stop signal
-            if not self.running:
-                logger.info("Running was switched off, discontinuing...")
-                break
+                # Check for a stop signal
+                if not self.running:
+                    logger.info("Running was switched off, discontinuing...")
+                    break
 
-            # Generate the command for this batch.
-            job_end_ix = job_start_ix + ids_per_job
-            if job_end_ix > end_ix:
-                job_end_ix = end_ix
+                # Generate the command for this batch.
+                job_end_ix = job_start_ix + ids_per_job
+                if job_end_ix > end_ix:
+                    job_end_ix = end_ix
 
-            # Enter a command for reach job
-            command_iter = self._iter_commands(job_start_ix, job_end_ix)
-            for job_name, cmd, job_def, job_queue in command_iter:
-                command_list = get_batch_command(cmd, purpose=self._purpose,
-                                                 project=self.project_name)
-                logger.info('Command list: %s' % str(command_list))
+                # Enter a command for reach job
+                command_iter = self._iter_commands(job_start_ix, job_end_ix)
+                for job_name, cmd, job_def, job_queue in command_iter:
+                    command_list = get_batch_command(cmd, purpose=self._purpose,
+                                                     project=self.project_name)
+                    logger.info('Command list: %s' % str(command_list))
 
-                # Submit the job.
-                job_info = batch_client.submit_job(
-                    jobName=job_name,
-                    jobQueue=job_queue,
-                    jobDefinition=job_def,
-                    containerOverrides={
-                        'environment': environment_vars,
-                        'command': command_list},
-                    retryStrategy={'attempts': num_tries}
-                )
+                    # Submit the job.
+                    job_info = batch_client.submit_job(
+                        jobName=job_name,
+                        jobQueue=job_queue,
+                        jobDefinition=job_def,
+                        containerOverrides={
+                            'environment': environment_vars,
+                            'command': command_list},
+                        retryStrategy={'attempts': num_tries}
+                    )
 
-                # Record the job id.
-                logger.info("submitted...")
-                self.job_lists[job_queue].append({k: job_info[k]
-                                                 for k in ['jobId', 'jobName']})
-                logger.info("Sleeping for %d seconds..." % stagger)
-                sleep(stagger)
+                    # Record the job id.
+                    logger.info("submitted...")
+                    self.job_lists[job_queue].append(
+                        {k: job_info[k] for k in ['jobId', 'jobName']}
+                    )
+                    logger.info("Sleeping for %d seconds..." % stagger)
+                    sleep(stagger)
+        finally:
+            self.set_monitors_submitting(False)
 
         return self.job_lists
 
@@ -578,17 +606,14 @@ class Submitter(object):
                 raise e
             return wait_res
 
-        active_monitors = [monitor for monitor in self.monitors.values()
-                           if monitor.job_list]
-
         res = []
         logger.info("Running %d active/%d monitors."
-                    % (len(active_monitors), len(self.monitors)))
-        if len(active_monitors) == 0:
-            res.append(wait_thread(active_monitors[0]))
+                    % (len(self.monitors), len(self._job_queue_dict)))
+        if len(self.monitors) == 1:
+            res.append(wait_thread(list(self.monitors.values())[0]))
         else:
             threads = []
-            for m in active_monitors:
+            for m in self.monitors.values():
                 th = Thread(target=wait_thread, args=[m])
                 th.start()
                 threads.append(th)
@@ -781,6 +806,12 @@ def create_read_parser():
         default=3000,
         type=int,
         help='Number of PMIDs to read for each AWS Batch job.'
+    )
+    parent_read_parser.add_argument(
+        '--stagger',
+        default=0,
+        type=int,
+        help="Set the amount of time to wait between job submissions in secs."
     )
     ''' Not currently supported.
     parent_read_parser.add_argument(
