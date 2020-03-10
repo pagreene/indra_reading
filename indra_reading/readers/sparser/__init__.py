@@ -43,7 +43,7 @@ class SparserReader(Reader):
         for content in content_iter:
             quality_issue = self._check_content(content.get_text())
             if quality_issue is not None:
-                logger.warning("Skipping %d due to: %s"
+                logger.warning("Skipping %s due to: %s"
                                % (content.get_id(), quality_issue))
                 continue
 
