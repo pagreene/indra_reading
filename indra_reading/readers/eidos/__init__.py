@@ -1,3 +1,4 @@
+import re
 import glob
 import json
 import logging
@@ -25,7 +26,8 @@ class EidosReader(Reader):
 
     @classmethod
     def get_version(cls):
-        return get_config('EIDOS_VERSION')
+        return re.match(r'eidos-assembly-(.+).jar',
+                        get_config('EIDOSPATH')).groups()[0]
 
     def prep_input(self, content_iter):
         logger.info('Prepping input.')
@@ -70,7 +72,7 @@ class EidosReader(Reader):
         ret = []
         self.prep_input(content_iter)
 
-        # Make sure there is something to read before we start up Reach.
+        # Make sure there is something to read before we start up Eidos.
         if not self.num_input:
             return ret
 
