@@ -4,7 +4,7 @@ phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR and getting Eidos JAR...
-      - $(aws ecr get-login --region $AWS_DEFAULT_REGION)
+      - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
       - aws s3 cp s3://bigmech/travis/eidos-assembly-0.2.3-SNAPSHOT.jar .
   build:
     commands:
