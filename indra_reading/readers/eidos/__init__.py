@@ -62,7 +62,10 @@ class EidosReader(Reader):
         """Get the output of a reading job as a list of filenames."""
         logger.info('Getting Eidos outputs.')
         for json_file in glob.glob(path.join(self.output_dir, '*.jsonld')):
-            content_id = path.basename(json_file)
+            # We do splitext to remove double extensions like .txt.jsonld
+            content_id = path.splitext(
+                path.splitext(path.basename(json_file))[0])[0]
+            logger.info('Content ID: %s' % content_id)
             with open(json_file, 'r') as fh:
                 content = json.load(fh)
             self.add_result(content_id, content)
