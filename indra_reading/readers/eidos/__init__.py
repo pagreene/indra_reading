@@ -21,7 +21,7 @@ class EidosReader(Reader):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_input = 0
-        self.output_dir = get_dir(self.tmp_dir, 'input')
+        self.input_dir = get_dir(self.tmp_dir, 'input')
         self.output_dir = get_dir(self.tmp_dir, 'output')
 
     @classmethod
