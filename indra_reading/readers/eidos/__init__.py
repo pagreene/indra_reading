@@ -26,8 +26,8 @@ class EidosReader(Reader):
 
     @classmethod
     def get_version(cls):
-        return re.match(r'eidos-assembly-(.+).jar',
-                        get_config('EIDOSPATH')).groups()[0]
+        jar_name = path.basename(get_config('EIDOSPATH'))
+        return re.match(r'eidos-assembly-(.+).jar', jar_name).groups()[0]
 
     def prep_input(self, content_iter):
         logger.info('Prepping input.')
