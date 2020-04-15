@@ -86,5 +86,5 @@ class EidosReader(Reader):
 
     @staticmethod
     def get_processor(content):
-        return eidos.process_json(content)
+        return eidos.process_json_bio(content)
 
