@@ -67,7 +67,10 @@ class EidosReader(Reader):
                 path.splitext(path.basename(json_file))[0])[0]
             logger.info('Content ID: %s' % content_id)
             with open(json_file, 'r') as fh:
-                content = json.load(fh)
+                try:
+                    content = json.load(fh)
+                except json.JSONDecodeError:
+                    content = None
             self.add_result(content_id, content)
         return self.results
 
