@@ -32,3 +32,8 @@ try:
     from .sparser import SparserReader
 except Exception as e:
     logger.warning(err_msg.format(reader="Sparser", err=str(e)))
+
+try:
+    from .eidos import EidosReader
+except Exception as e:
+    logger.warning(err_msg.format(reader="Eidos", err=str(e)))
