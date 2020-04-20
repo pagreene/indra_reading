@@ -5,11 +5,11 @@ import logging
 from os import path, remove, listdir
 from indra.sources import eidos
 from indra.config import get_config
-from indra_reading.readers.content import Content
 from indra.literature.pmc_client import extract_text
 from indra.sources.eidos.cli import extract_from_directory
-from indra_reading.readers.core import Reader, ReadingError
+from indra_reading.readers.core import Reader
 from indra_reading.readers.util import get_dir
+from indra_reading.readers.content import Content
 
 
 logger = logging.getLogger(__name__)
@@ -93,4 +93,3 @@ class EidosReader(Reader):
     @staticmethod
     def get_processor(content):
         return eidos.process_json_bio(content)
-
