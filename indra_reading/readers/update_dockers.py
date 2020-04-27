@@ -48,13 +48,20 @@ def make_zip_package(rc):
     if dockerfile is None:
         return None, None
 
-    # Create the buildspec
-    build_spec_path = path.join(DOCKER_TEMPLATE_DIR, 'buildspec_fmt.yml')
-    with open(build_spec_path, 'r') as f:
-        build_spec_fmt = f.read()
-    args = ' '.join('--build-arg {arg}=${arg}'.format(arg=arg)
-                    for arg in arg_list)
-    build_spec = build_spec_fmt.format(args=args)
+    # Check for a buildspec file.
+    buildspec_path = path.join(path.dirname(inspect.getfile(rc)),
+                               'buildspec.yml')
+    if path.exists(buildspec_path):
+        with open(buildspec_path, 'r') as f:
+            build_spec = f.read()
+    else:
+        # Create the buildspec
+        build_spec_path = path.join(DOCKER_TEMPLATE_DIR, 'buildspec_fmt.yml')
+        with open(build_spec_path, 'r') as f:
+            build_spec_fmt = f.read()
+        args = ' '.join('--build-arg {arg}=${arg}'.format(arg=arg)
+                        for arg in arg_list)
+        build_spec = build_spec_fmt.format(args=args)
 
     # Zip up the buildspec and the dockerfile
     zip_output = BytesIO()
@@ -69,15 +76,23 @@ def make_zip_package(rc):
 def get_docker_file(rc, logging=True):
     template_path = path.join(path.dirname(inspect.getfile(rc)),
                               'docker_template')
-    if not path.exists(template_path):
+    if path.exists(template_path):
         if logging:
-            logger.info("%s does not have a dockerfile. Continuing." % rc.name)
-        return None, None
-    if logging:
-        logger.info("Forming dockerfile for %s." % rc.name)
-    dockerfile = _make_dockerfile_rec(template_path)
-    dockerfile += "\n# Set in-{reader} environment variable\n" \
-                  "ENV IN_{reader}_DOCKER true\n".format(reader=rc.name)
+            logger.info("Forming dockerfile for %s." % rc.name)
+        dockerfile = _make_dockerfile_rec(template_path)
+        dockerfile += "\n# Set in-{reader} environment variable\n" \
+                      "ENV IN_{reader}_DOCKER true\n".format(reader=rc.name)
+    else:
+        docker_path = path.join(path.dirname(inspect.getfile(rc)),
+                                'Dockerfile')
+        if path.exists(docker_path):
+            with open(docker_path, 'r') as f:
+                dockerfile = f.read()
+        else:
+            if logging:
+                logger.info("%s does not have a dockerfile. Continuing."
+                            % rc.name)
+            return None, None
     arg_list = re.findall('^ARG[ \t]+(.*?)$', dockerfile, re.MULTILINE)
     return dockerfile, arg_list
 
