@@ -5,8 +5,8 @@ mti_username = get_config('MTI_USERNAME')
 mti_password = get_config('MTI_PASSWORD')
 mti_jars_path = get_config('MTI_JARS_PATH')
 mti_classpath = '%s/*' % mti_jars_path
-os.environ['CLASSPATH'] = mti_classpath + ':' + os.environ.get('CLASSPATH', '')
-from indra.java_vm import autoclass
+os.environ['CLASSPATH'] = mti_classpath
+from jnius import autoclass
 
 import re
 import html
@@ -43,6 +43,8 @@ class MTIReader(Reader):
     def prep_input(self, content_iter):
         logger.info('Prepping input.')
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
+        abs_file = os.path.realpath(os.path.expanduser(abs_file))
+
         with open(abs_file, 'w') as fh:
             for content in content_iter:
                 # If it's an NXML, we skip it
@@ -54,8 +56,8 @@ class MTIReader(Reader):
                                    % (content.get_id(), quality_issue))
                     continue
                 self.num_input += 1
-                fh.write('UI  - %s\n' % content.get_id())
-                fh.write('AB  - %s\n\n' % sanitize_text(content.get_text()))
+                fh.write('UI  -  %s\n' % content.get_id())
+                fh.write('AB  -  %s\n\n' % sanitize_text(content.get_text()))
         return
 
     def clear_input(self):
@@ -83,14 +85,15 @@ class MTIReader(Reader):
         return self.results
 
     def _read(self, content_iter, verbose=False, log=False):
+        logger.info('Running MTI.')
         ret = []
         self.prep_input(content_iter)
 
         if not self.num_input:
             return ret
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
+        abs_file = os.path.realpath(os.path.expanduser(abs_file))
         batch = autoclass('GenericBatchNew')()
-        import ipdb; ipdb.set_trace()
         result = batch.processor(["--email", mti_email, abs_file],
                                  mti_username, mti_password)
         if result.startswith('ERROR'):
@@ -101,7 +104,7 @@ class MTIReader(Reader):
         for line in result.splitlines():
             parts = line.split('|')
             content_id = parts[0]
-            result_by_id[content_id].append(parts[1:])
+            result_by_id[content_id].append(line)
         for content_id, res in result_by_id.items():
             out_file = os.path.join(self.output_dir,
                                     '%s.txt' % content_id)
