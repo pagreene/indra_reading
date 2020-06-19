@@ -1,9 +1,28 @@
+
+def get_config_extended(key):
+    """Return config either from INDRA, environemnt, or AWS SSM."""
+    from indra.config import get_config
+    val = get_config(key)
+    if val:
+        return val
+    try:
+        import boto3
+        client = boto3.client('ssm')
+        response = client.get_parameter(Name=key, WithDecryption=True)
+        return response['Parameter']['Value']
+    except Exception as e:
+        return None
+
+
+# We get MTI configuration parameters first
+mti_email = get_config_extended('MTI_EMAIL')
+mti_username = get_config_extended('MTI_USERNAME')
+mti_password = get_config_extended('MTI_PASSWORD')
+mti_jars_path = get_config_extended('MTI_JARS_PATH')
+
+# We next need to take care of setting the CLASSPATH and then importing
+# jnius before the other imports
 import os
-from indra.config import get_config
-mti_email = get_config('MTI_EMAIL')
-mti_username = get_config('MTI_USERNAME')
-mti_password = get_config('MTI_PASSWORD')
-mti_jars_path = get_config('MTI_JARS_PATH')
 mti_classpath = '%s/*' % mti_jars_path
 os.environ['CLASSPATH'] = mti_classpath
 from jnius import autoclass
@@ -21,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def sanitize_text(txt):
+    """MTI needs single-line text and errors on non-ASCII."""
     txt = html.unescape(txt)
     txt = re.sub(r'\n', ' ', txt)
     txt = re.sub(r'[^\x00-\x7F]+', ' ', txt)
@@ -45,6 +65,9 @@ class MTIReader(Reader):
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
         abs_file = os.path.realpath(os.path.expanduser(abs_file))
 
+        # MTI takes a single text file with multiple IDs and text
+        # contents when running in batch mode. Here we compile
+        # that single file.
         with open(abs_file, 'w') as fh:
             for content in content_iter:
                 # If it's an NXML, we skip it
@@ -91,15 +114,22 @@ class MTIReader(Reader):
 
         if not self.num_input:
             return ret
+
+        # We can now retrieve the prepared input file and call
+        # MTI batch
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
         abs_file = os.path.realpath(os.path.expanduser(abs_file))
         batch = autoclass('GenericBatchNew')()
         result = batch.processor(["--email", mti_email, abs_file],
                                  mti_username, mti_password)
+        # If there is an error, MTI just returns a string
+        # starting with ERROR
         if result.startswith('ERROR'):
             logger.error('MTI error: "%s"' % result)
             return ret
 
+        # Here we take apart the response by content ID so that we
+        # can create separate output files for each content
         result_by_id = defaultdict(list)
         for line in result.splitlines():
             parts = line.split('|')
@@ -118,6 +148,8 @@ class MTIReader(Reader):
 
     @staticmethod
     def get_processor(content):
+        # MTI doesn't produce statements so we just
+        # create a processor with an empty statements attribute
         class DummyProcessor:
             statements = []
         return DummyProcessor()
