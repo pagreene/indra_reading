@@ -24,6 +24,11 @@ except Exception as e:
     logger.warning(err_msg.format(reader="Trips", err=str(e)))
 
 try:
+    from .mti import MTIReader
+except Exception as e:
+    logger.warning(err_msg.format(reader="MTI", err=str(e)))
+
+try:
     from .reach import ReachReader
 except Exception as e:
     logger.warning(err_msg.format(reader="REACH", err=str(e)))
@@ -37,3 +42,4 @@ try:
     from .eidos import EidosReader
 except Exception as e:
     logger.warning(err_msg.format(reader="Eidos", err=str(e)))
+

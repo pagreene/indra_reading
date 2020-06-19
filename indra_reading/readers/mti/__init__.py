@@ -1,22 +1,23 @@
 import os
+from indra.config import get_config
+mti_email = get_config('MTI_EMAIL')
+mti_username = get_config('MTI_USERNAME')
+mti_password = get_config('MTI_PASSWORD')
+mti_jars_path = get_config('MTI_JARS_PATH')
+mti_classpath = '%s/*' % mti_jars_path
+os.environ['CLASSPATH'] = mti_classpath + ':' + os.environ.get('CLASSPATH', '')
+from indra.java_vm import autoclass
+
 import re
 import html
 import glob
-import json
 import logging
-from pyjnius import autoclass
 from os import path, remove, listdir
-from indra.config import get_config
 from collections import defaultdict
 from indra_reading.readers.core import Reader
 from indra_reading.readers.util import get_dir
 
-
 logger = logging.getLogger(__name__)
-
-mti_email = get_config('MTI_EMAIL')
-mti_username = get_config('MTI_USERNAME')
-mti_password = get_config('MTI_PASSWORD')
 
 
 def sanitize_text(txt):
@@ -41,19 +42,20 @@ class MTIReader(Reader):
 
     def prep_input(self, content_iter):
         logger.info('Prepping input.')
-        for content in content_iter:
-            # If it's an NXML, we skip it
-            if content.is_format('nxml'):
-                continue
-            quality_issue = self._check_content(content.get_text())
-            if quality_issue is not None:
-                logger.warning('Skipping %s due to: %s'
-                               % (content.get_id(), quality_issue))
-                continue
-
-            new_fpath = content.copy_to(self.input_dir)
-            self.num_input += 1
-            logger.debug('%s saved for tagging by MTI.' % new_fpath)
+        abs_file = os.path.join(self.input_dir, 'abstracts.txt')
+        with open(abs_file, 'w') as fh:
+            for content in content_iter:
+                # If it's an NXML, we skip it
+                if content.is_format('nxml'):
+                    continue
+                quality_issue = self._check_content(content.get_text())
+                if quality_issue is not None:
+                    logger.warning('Skipping %s due to: %s'
+                                   % (content.get_id(), quality_issue))
+                    continue
+                self.num_input += 1
+                fh.write('UI  - %s\n' % content.get_id())
+                fh.write('AB  - %s\n\n' % sanitize_text(content.get_text()))
         return
 
     def clear_input(self):
@@ -69,27 +71,31 @@ class MTIReader(Reader):
         """Get the output of a reading job as a list of filenames."""
         logger.info('Getting MTI outputs.')
         for txt_file in glob.glob(path.join(self.output_dir, '*.txt')):
+            logger.info('Processing %s' % txt_file)
             content_id = path.splitext(path.basename(txt_file))[0]
             logger.info('Content ID: %s' % content_id)
             with open(txt_file, 'r') as fh:
                 content = fh.read()
+            if content and content.startswith('ERROR'):
+                logger.info('MTI error: "%s"' % content)
+                continue
             self.add_result(content_id, content)
         return self.results
 
     def _read(self, content_iter, verbose=False, log=False):
         ret = []
+        self.prep_input(content_iter)
 
         if not self.num_input:
             return ret
-
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
-        with open(abs_file, 'w') as fh:
-            for content in content_iter:
-                fh.write('AB - %s\n' % sanitize_text(content.get_text()))
-
         batch = autoclass('GenericBatchNew')()
+        import ipdb; ipdb.set_trace()
         result = batch.processor(["--email", mti_email, abs_file],
                                  mti_username, mti_password)
+        if result.startswith('ERROR'):
+            logger.error('MTI error: "%s"' % result)
+            return ret
 
         result_by_id = defaultdict(list)
         for line in result.splitlines():
