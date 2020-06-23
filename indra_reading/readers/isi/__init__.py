@@ -10,6 +10,10 @@ from indra.sources.isi.preprocessor import IsiPreprocessor
 
 logger = logging.getLogger(__name__)
 
+# If True, we only retain Complex statements between grounded, molecular
+# agents.
+molecular_complexes_only = True
+
 
 class IsiReader(Reader):
     """Wrapper for the ISI reader."""
@@ -79,4 +83,6 @@ class IsiReader(Reader):
     def get_processor(content):
         processor = IsiProcessor(content)
         processor.get_statements()
+        if molecular_complexes_only:
+            processor.retain_molecular_complexes()
         return processor
