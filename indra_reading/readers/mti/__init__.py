@@ -1,3 +1,7 @@
+import sys
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_config_extended(key):
     """Return config either from INDRA, environemnt, or AWS SSM."""
@@ -11,7 +15,8 @@ def get_config_extended(key):
         response = client.get_parameter(Name=key, WithDecryption=True)
         return response['Parameter']['Value']
     except Exception as e:
-        return None
+        logger.exception(e)
+        sys.exit(1)
 
 
 # We get MTI configuration parameters first
@@ -30,13 +35,11 @@ from jnius import autoclass
 import re
 import html
 import glob
-import logging
 from os import path, remove, listdir
 from collections import defaultdict
 from indra_reading.readers.core import Reader
 from indra_reading.readers.util import get_dir
 
-logger = logging.getLogger(__name__)
 
 
 def sanitize_text(txt):
