@@ -447,14 +447,12 @@ class Submitter(object):
 
     def _iter_commands(self, start_ix, end_ix):
         # Group the readings into batches that share both a queue and a job_def.
-        all_submitted_readers = set()
         for job_def, jd_reader_list in self._job_def_dict.items():
             for job_queue, jq_reader_list in self._job_queue_dict.items():
 
                 joined_reader_set = set(jd_reader_list) & set(jq_reader_list)
                 reader_list = [r for r in joined_reader_set
                                if r in self.readers]
-                all_submitted_readers |= joined_reader_set
                 if not reader_list:
                     continue
 
@@ -468,10 +466,6 @@ class Submitter(object):
                         logger.warning("Argument of command is not a string: %s"
                                        % repr(arg))
                 yield job_name, cmd, job_def, job_queue
-
-        if all_submitted_readers != set(self.readers):
-            logger.warning("Some readers were not submitted because they did"
-                           "not have both a job_def and queue assignment.")
 
     def _get_base(self, job_name, start_ix, end_ix):
         raise NotImplementedError
