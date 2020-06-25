@@ -44,13 +44,16 @@ from indra_reading.readers.core import Reader
 from indra_reading.readers.util import get_dir
 
 
-
 def sanitize_text(txt):
     """MTI needs single-line text and errors on non-ASCII."""
     txt = html.unescape(txt)
     txt = re.sub(r'\n', ' ', txt)
     txt = re.sub(r'[^\x00-\x7F]+', ' ', txt)
     return txt
+
+
+def has_error(line):
+    return '*** ERROR ***' in line
 
 
 class MTIReader(Reader):
@@ -142,6 +145,9 @@ class MTIReader(Reader):
         # can create separate output files for each content
         result_by_id = defaultdict(list)
         for line in result.splitlines():
+            if has_error(line):
+                logger.info('Skipping line with error: %s' % line)
+                continue
             parts = line.split('|')
             content_id = parts[0]
             result_by_id[content_id].append(line)
