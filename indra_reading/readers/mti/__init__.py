@@ -1,17 +1,25 @@
+import sys
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_config_extended(key):
     """Return config either from INDRA, environemnt, or AWS SSM."""
     from indra.config import get_config
     val = get_config(key)
     if val:
+        logger.info('Got %s from environment' % key)
         return val
     try:
         import boto3
         client = boto3.client('ssm')
         response = client.get_parameter(Name=key, WithDecryption=True)
-        return response['Parameter']['Value']
+        val = response['Parameter']['Value']
+        logger.info('Got %s from SSM' % key)
+        return val
     except Exception as e:
-        return None
+        logger.exception(e)
+        sys.exit(1)
 
 
 # We get MTI configuration parameters first
@@ -30,13 +38,10 @@ from jnius import autoclass
 import re
 import html
 import glob
-import logging
 from os import path, remove, listdir
 from collections import defaultdict
 from indra_reading.readers.core import Reader
 from indra_reading.readers.util import get_dir
-
-logger = logging.getLogger(__name__)
 
 
 def sanitize_text(txt):
@@ -45,6 +50,10 @@ def sanitize_text(txt):
     txt = re.sub(r'\n', ' ', txt)
     txt = re.sub(r'[^\x00-\x7F]+', ' ', txt)
     return txt
+
+
+def has_error(line):
+    return '*** ERROR ***' in line
 
 
 class MTIReader(Reader):
@@ -119,22 +128,30 @@ class MTIReader(Reader):
         # MTI batch
         abs_file = os.path.join(self.input_dir, 'abstracts.txt')
         abs_file = os.path.realpath(os.path.expanduser(abs_file))
+        logger.info('Instantiating MTI GenericBatchNew class.')
         batch = autoclass('GenericBatchNew')()
+        logger.info('Calling MTI batch processor.')
         result = batch.processor(["--email", mti_email, abs_file],
                                  mti_username, mti_password)
         # If there is an error, MTI just returns a string
         # starting with ERROR
         if result.startswith('ERROR'):
-            logger.error('MTI error: "%s"' % result)
+            logger.error('MTI returned with error: "%s"' % result)
             return ret
+
+        logger.info('MTI succeeded.')
 
         # Here we take apart the response by content ID so that we
         # can create separate output files for each content
         result_by_id = defaultdict(list)
         for line in result.splitlines():
+            if has_error(line):
+                logger.info('Skipping line with error: %s' % line)
+                continue
             parts = line.split('|')
             content_id = parts[0]
             result_by_id[content_id].append(line)
+        logger.info('Got results for %s IDs' % len(result_by_id))
         for content_id, res in result_by_id.items():
             out_file = os.path.join(self.output_dir,
                                     '%s.txt' % content_id)
