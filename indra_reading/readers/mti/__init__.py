@@ -165,27 +165,23 @@ class MTIReader(Reader):
         return ret
 
     @staticmethod
-    def parse_results(output):
+    def parse_results(content):
         """Get terms from a single MTI output"""
         terms = set()
 
-        for pmid in output.keys():
-            # Get output content for given PMID
-            content = output[pmid].get('MTI', [None])[0]
-            if content is None:
-                logger.warning('No MTI output for %s' % pmid)
-                continue
-            # Split content into non-empty lines
-            lines = (_ for _ in content.strip('"').split('\\n') if _)
-            for line in lines:
-                topic = line.split('|')[1]
-                # Look for mesh ID of the topic
-                mesh_id_str = mesh_client.get_mesh_id_name(topic)[0]
-                if not mesh_id_str:
-                    logger.warning('Mesh ID not found for "%s"' % topic)
-                    continue 
-                # Add mesh ID as a number without prefix
-                mesh_id = int(mesh_id_str[1:])
-                terms.add((int(pmid), mesh_id))
+        # Split content into non-empty lines
+        lines = (_ for _ in content.strip('"').split('\\n') if _)
+        for line in lines:
+            tcid, topic = line.split('|')[:2]
+            
+            # Look for mesh ID of the topic
+            mesh_id_str = mesh_client.get_mesh_id_name(topic)[0]
+            if not mesh_id_str:
+                logger.warning('Mesh ID not found for "%s"' % topic)
+                continue 
+
+            # Add mesh ID as a number without prefix
+            mesh_id = int(mesh_id_str[1:])
+            terms.add(tcid, mesh_id)
             
         return list(terms)
