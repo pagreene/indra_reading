@@ -174,7 +174,7 @@ class MTIReader(Reader):
         lines = (_ for _ in content.strip('"').split('\\n') if _)
         for line in lines:
             topic = line.split('|')[1]
-            
+
             # Look for mesh ID of the topic
             mesh_id_str = mesh_client.get_mesh_id_name(topic)[0]
             if not mesh_id_str:
@@ -184,5 +184,5 @@ class MTIReader(Reader):
             # Add mesh ID as a number without prefix
             mesh_id = int(mesh_id_str[1:])
             terms.add(mesh_id)
-            
+
         return list(terms)
