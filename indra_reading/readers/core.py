@@ -40,7 +40,6 @@ class ReadingData(object):
         self.format = reading_format
         self.reading = reading
         self._results = None
-        self.kind_of_results = 'mesh_terms' if reader_class.name == 'MTI' else 'statements'
         return
 
     def __repr__(self):
@@ -57,7 +56,7 @@ class ReadingData(object):
                 return []
 
             # Treat MTI outputs differently
-            if self.kind_of_results == 'mesh_terms':
+            if self.reader_class.results_type == 'mesh_terms':
                 return self.reader_class.parse_results(self.reading)
 
             # Map to the different processors.
@@ -129,6 +128,7 @@ class Reader(object):
         self.results = []
         self.ResultClass = ResultClass
         self.content_ids_read = []
+        self.results_type = 'statements'
         return
 
     def __repr__(self):
