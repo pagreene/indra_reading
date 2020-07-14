@@ -39,21 +39,26 @@ class ReadingData(object):
         self.reader_version = reader_version
         self.format = reading_format
         self.reading = reading
-        self._statements = None
+        self._results = None
+        self.kind_of_results = 'mesh_terms' if reader_class.name == 'MTI' else 'statements'
         return
 
     def __repr__(self):
         return self.__class__.__name__ + "(content_id=%s, reader_class=%s)" \
                % (self.content_id, self.reader_class.__name__)
 
-    def get_statements(self, reprocess=False, add_metadata=False):
+    def get_results(self, reprocess=False, add_metadata=False):
         """General method to create statements."""
-        if self._statements is None or reprocess:
+        if self._results is None or reprocess:
 
             # Handle the case that there is no content.
             if self.reading is None:
-                self._statements = []
+                self._results = []
                 return []
+
+            # Treat MTI outputs differently
+            if self.kind_of_results == 'mesh_terms':
+                return self.reader_class.parse_results(self.reading)
 
             # Map to the different processors.
             processor = self.reader_class.get_processor(self.reading)
@@ -70,14 +75,14 @@ class ReadingData(object):
             if add_metadata:
                 meta_info = {'READER': self.reader_class.name.upper(),
                              'CONTENT_ID': self.content_id}
-                self._statements = []
+                self._results = []
                 for stmt in stmts:
                     stmt.evidence[0].text_refs.update(meta_info)
-                    self._statements.append(stmt)
+                    self._results.append(stmt)
             else:
-                self._statements = stmts[:]
+                self._results = stmts[:]
 
-        return self._statements[:]
+        return self._results[:]
 
     def to_json(self):
         return {'content_id': self.content_id,
