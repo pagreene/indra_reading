@@ -1,4 +1,3 @@
-import sys
 import logging
 from indra.databases import mesh_client
 
@@ -65,7 +64,7 @@ class MtiUnavailableError(Exception):
 
 class MTIReader(Reader):
     name = 'MTI'
-    results_type = 'mesh_term'
+    results_type = 'mesh_terms'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -176,10 +175,13 @@ class MTIReader(Reader):
     @staticmethod
     def parse_results(content):
         """Get terms from a single MTI output"""
+        if not content:
+            return []
+
         terms = set()
 
         # Split content into non-empty lines
-        lines = (_ for _ in content.strip('"').split('\\n') if _)
+        lines = content.splitlines()
         for line in lines:
             topic = line.split('|')[1]
 
@@ -190,7 +192,10 @@ class MTIReader(Reader):
                 continue 
 
             # Add mesh ID as a number without prefix
+            assert mesh_id_str[0] in ['C', 'D'], \
+                f"Supposedly impossible mesh ID found: {mesh_id_str}"
+            is_concept = (mesh_id_str[0] == 'C')
             mesh_id = int(mesh_id_str[1:])
-            terms.add(mesh_id)
+            terms.add((mesh_id, is_concept))
 
         return list(terms)
