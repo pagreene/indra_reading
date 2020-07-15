@@ -207,7 +207,7 @@ class SparserReader(Reader):
         return ret
 
     @staticmethod
-    def get_processor(content):
+    def parse_results(content):
         processor = sparser.process_json_dict(content)
         if processor is not None:
             processor.set_statements_pmid(None)

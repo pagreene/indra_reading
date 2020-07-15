@@ -60,7 +60,7 @@ class ReadingData(object):
                 return self.reader_class.parse_results(self.reading)
 
             # Map to the different processors.
-            processor = self.reader_class.get_processor(self.reading)
+            processor = self.reader_class.parse_results(self.reading)
 
             # Get the statements from the processor, if it was resolved.
             if processor is None:
@@ -222,7 +222,7 @@ class Reader(object):
         raise NotImplementedError()
 
     @staticmethod
-    def get_processor(content):
+    def parse_results(content):
         """Get the appropriate processor class from INDRA.
 
         Implemented by child.
