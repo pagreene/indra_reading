@@ -4,6 +4,7 @@ from indra.databases import mesh_client
 
 logger = logging.getLogger(__name__)
 
+
 def get_config_extended(key):
     """Return config either from INDRA, environemnt, or AWS SSM."""
     from indra.config import get_config
@@ -23,18 +24,23 @@ def get_config_extended(key):
         sys.exit(1)
 
 
-# We get MTI configuration parameters first
-mti_email = get_config_extended('MTI_EMAIL')
-mti_username = get_config_extended('MTI_USERNAME')
-mti_password = get_config_extended('MTI_PASSWORD')
-mti_jars_path = get_config_extended('MTI_JARS_PATH')
+try:
+    # We get MTI configuration parameters first
+    mti_email = get_config_extended('MTI_EMAIL')
+    mti_username = get_config_extended('MTI_USERNAME')
+    mti_password = get_config_extended('MTI_PASSWORD')
+    mti_jars_path = get_config_extended('MTI_JARS_PATH')
 
-# We next need to take care of setting the CLASSPATH and then importing
-# jnius before the other imports
-import os
-mti_classpath = '%s/*' % mti_jars_path
-os.environ['CLASSPATH'] = mti_classpath
-from jnius import autoclass
+    # We next need to take care of setting the CLASSPATH and then importing
+    # jnius before the other imports
+    from os import environ
+    environ['CLASSPATH'] = f'{mti_jars_path}/*'
+    from jnius import autoclass
+    MTI_AVAILABLE = True
+except:
+    logger.warning("Unable to access secure parameters; "
+                   "MTI reading will not be available.")
+    MTI_AVAILABLE = False
 
 import re
 import html
@@ -57,6 +63,10 @@ def has_error(line):
     return '*** ERROR ***' in line
 
 
+class MtiUnavailableError(Exception):
+    pass
+
+
 class MTIReader(Reader):
     name = 'MTI'
     results_type = 'mesh_term'
@@ -73,8 +83,8 @@ class MTIReader(Reader):
 
     def prep_input(self, content_iter):
         logger.info('Prepping input.')
-        abs_file = os.path.join(self.input_dir, 'abstracts.txt')
-        abs_file = os.path.realpath(os.path.expanduser(abs_file))
+        abs_file = path.join(self.input_dir, 'abstracts.txt')
+        abs_file = path.realpath(path.expanduser(abs_file))
 
         # MTI takes a single text file with multiple IDs and text
         # contents when running in batch mode. Here we compile
@@ -119,6 +129,8 @@ class MTIReader(Reader):
         return self.results
 
     def _read(self, content_iter, verbose=False, log=False):
+        if not MTI_AVAILABLE:
+            raise MtiUnavailableError("MTI is not available for reading.")
         logger.info('Running MTI.')
         ret = []
         self.prep_input(content_iter)
@@ -128,8 +140,8 @@ class MTIReader(Reader):
 
         # We can now retrieve the prepared input file and call
         # MTI batch
-        abs_file = os.path.join(self.input_dir, 'abstracts.txt')
-        abs_file = os.path.realpath(os.path.expanduser(abs_file))
+        abs_file = path.join(self.input_dir, 'abstracts.txt')
+        abs_file = path.realpath(path.expanduser(abs_file))
         logger.info('Instantiating MTI GenericBatchNew class.')
         batch = autoclass('GenericBatchNew')()
         logger.info('Calling MTI batch processor.')
@@ -155,8 +167,8 @@ class MTIReader(Reader):
             result_by_id[content_id].append(line)
         logger.info('Got results for %s IDs' % len(result_by_id))
         for content_id, res in result_by_id.items():
-            out_file = os.path.join(self.output_dir,
-                                    '%s.txt' % content_id)
+            out_file = path.join(self.output_dir,
+                                 '%s.txt' % content_id)
             with open(out_file, 'w') as fh:
                 for line in res:
                     fh.write('%s\n' % line)
