@@ -59,13 +59,13 @@ def has_error(line):
 
 class MTIReader(Reader):
     name = 'MTI'
+    results_type = 'mesh_term'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_input = 0
         self.input_dir = get_dir(self.tmp_dir, 'input')
         self.output_dir = get_dir(self.tmp_dir, 'output')
-        self.results_type = 'mesh_terms'
 
     @classmethod
     def get_version(cls):

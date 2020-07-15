@@ -106,6 +106,7 @@ class Reader(object):
     """This abstract object defines and some general methods for readers."""
     name = NotImplemented
     result_format = formats.JSON
+    results_type = 'statements'
 
     def __init__(self, base_dir=None, n_proc=1, check_content=True,
                  input_character_limit=CONTENT_CHARACTER_LIMIT,
@@ -128,7 +129,6 @@ class Reader(object):
         self.results = []
         self.ResultClass = ResultClass
         self.content_ids_read = []
-        self.results_type = 'statements'
         return
 
     def __repr__(self):
