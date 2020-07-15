@@ -12,16 +12,12 @@ def get_config_extended(key):
     if val:
         logger.info('Got %s from environment' % key)
         return val
-    try:
-        import boto3
-        client = boto3.client('ssm')
-        response = client.get_parameter(Name=key, WithDecryption=True)
-        val = response['Parameter']['Value']
-        logger.info('Got %s from SSM' % key)
-        return val
-    except Exception as e:
-        logger.exception(e)
-        sys.exit(1)
+    import boto3
+    client = boto3.client('ssm')
+    response = client.get_parameter(Name=key, WithDecryption=True)
+    val = response['Parameter']['Value']
+    logger.info('Got %s from SSM' % key)
+    return val
 
 
 try:
