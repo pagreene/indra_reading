@@ -220,6 +220,6 @@ class ReachReader(Reader):
         return ret
 
     @staticmethod
-    def get_processor(content):
+    def parse_results(content):
         json_str = json.dumps(content)
         return reach.process_json_str(json_str)

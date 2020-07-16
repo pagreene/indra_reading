@@ -39,24 +39,28 @@ class ReadingData(object):
         self.reader_version = reader_version
         self.format = reading_format
         self.reading = reading
-        self._statements = None
+        self._results = None
         return
 
     def __repr__(self):
         return self.__class__.__name__ + "(content_id=%s, reader_class=%s)" \
                % (self.content_id, self.reader_class.__name__)
 
-    def get_statements(self, reprocess=False, add_metadata=False):
+    def get_results(self, reprocess=False, add_metadata=False):
         """General method to create statements."""
-        if self._statements is None or reprocess:
+        if self._results is None or reprocess:
 
             # Handle the case that there is no content.
             if self.reading is None:
-                self._statements = []
+                self._results = []
                 return []
 
+            # Treat MTI outputs differently
+            if self.reader_class.results_type == 'mesh_terms':
+                return self.reader_class.parse_results(self.reading)
+
             # Map to the different processors.
-            processor = self.reader_class.get_processor(self.reading)
+            processor = self.reader_class.parse_results(self.reading)
 
             # Get the statements from the processor, if it was resolved.
             if processor is None:
@@ -70,14 +74,14 @@ class ReadingData(object):
             if add_metadata:
                 meta_info = {'READER': self.reader_class.name.upper(),
                              'CONTENT_ID': self.content_id}
-                self._statements = []
+                self._results = []
                 for stmt in stmts:
                     stmt.evidence[0].text_refs.update(meta_info)
-                    self._statements.append(stmt)
+                    self._results.append(stmt)
             else:
-                self._statements = stmts[:]
+                self._results = stmts[:]
 
-        return self._statements[:]
+        return self._results[:]
 
     def to_json(self):
         return {'content_id': self.content_id,
@@ -102,6 +106,7 @@ class Reader(object):
     """This abstract object defines and some general methods for readers."""
     name = NotImplemented
     result_format = formats.JSON
+    results_type = 'statements'
 
     def __init__(self, base_dir=None, n_proc=1, check_content=True,
                  input_character_limit=CONTENT_CHARACTER_LIMIT,
@@ -217,7 +222,7 @@ class Reader(object):
         raise NotImplementedError()
 
     @staticmethod
-    def get_processor(content):
+    def parse_results(content):
         """Get the appropriate processor class from INDRA.
 
         Implemented by child.

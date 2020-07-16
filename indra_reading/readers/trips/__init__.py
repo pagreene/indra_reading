@@ -212,7 +212,7 @@ class TripsReader(Reader):
         return version
 
     @staticmethod
-    def get_processor(reading_content):
+    def parse_results(reading_content):
         return process_xml(reading_content)
 
 

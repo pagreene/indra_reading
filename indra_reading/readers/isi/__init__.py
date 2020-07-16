@@ -80,7 +80,7 @@ class IsiReader(Reader):
         return get_isi_version()
 
     @staticmethod
-    def get_processor(content):
+    def parse_results(content):
         processor = IsiProcessor(content)
         processor.get_statements()
         if molecular_complexes_only:
