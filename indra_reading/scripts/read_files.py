@@ -139,7 +139,7 @@ def main():
     # Generate and dump the statements.
     stmts_dump_path = path.join(args.output_path, 'stmts')
     stmt_gen = (s for rd in outputs
-                for s in rd.get_statements(add_metadata=args.add_metadata))
+                for s in rd.get_results(add_metadata=args.add_metadata))
     if args.pickle:
         stmts_dump_path += ".pkl"
         stmts_json = list(stmt_gen)
