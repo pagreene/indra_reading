@@ -17,7 +17,7 @@ class PmidSubmitter(ReadingSubmitter):
                      'run_db_reading_isi_jobdef': ['isi']}
 
     def _get_base(self, job_name, start_ix, end_ix):
-        base = ['python', '-m', 'indra_reading.scripts.pmid_reading.read_pmids_aws',
+        base = ['python', '-m', 'indra_reading.pipelines.pmid_reading.read_pmids_aws',
                 self.job_base, '/tmp', '16', str(start_ix), str(end_ix)]
         return base
 
