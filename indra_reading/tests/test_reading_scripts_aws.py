@@ -24,7 +24,7 @@ def test_normal_pmid_reading_call():
 
     # Call the reading tool
     sub = srp.PmidSubmitter(basename, ['sparser'])
-    for job_name, cmd, job_def in sub._iter_commands(0, 2):
+    for job_name, cmd, job_def in sub._iter_job_queue_def_commands(0, 2):
         check_call(cmd)
 
     # Remove garbage on s3
