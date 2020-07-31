@@ -48,7 +48,6 @@ class Submitter:
     """
     job_class = NotImplemented
 
-    _s3_input_name = NotImplemented
     _purpose = NotImplemented
 
     # The job queue on which these jobs will be submitted.

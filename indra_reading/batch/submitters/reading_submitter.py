@@ -20,6 +20,7 @@ class ReadingSubmitter(Submitter):
     between the input file and the ids per job, for the sake of backwards
     compatibility.
     """
+    _s3_input_name = NotImplemented
 
     def __init__(self, basename, readers, *args, **kwargs):
         if 'all' in readers:
