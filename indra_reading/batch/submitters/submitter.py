@@ -61,7 +61,7 @@ class Submitter:
         self.basename = basename
         self.group_name = group_name
         self.s3_base, self.job_base = \
-            get_s3_and_job_prefixes(basename, group_name)
+            get_s3_and_job_prefixes(self.job_class, basename, group_name)
         self.project_name = project_name
         self.job_lists = {q_name: [] for q_name in self._job_queue_dict.keys()}
         self.options = options
