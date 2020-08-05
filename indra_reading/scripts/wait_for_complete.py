@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
 
+from indra_reading.util import get_s3_and_job_prefixes
+
 
 def make_parser():
     """Generate the parser for this script."""
@@ -70,12 +72,13 @@ if __name__ == '__main__':
     parser = make_parser()
     args = parser.parse_args()
 
-    from indra_reading.submission.submitter import wait_for_complete
+    from indra_reading.batch.monitor import BatchMonitor
 
     job_list = None
     if args.job_list is not None:
         job_list = [{'jobId': jid} for jid in args.job_list]
 
-    wait_for_complete(args.queue_name, job_list, args.job_name_prefix,
-                      args.poll_interval, args.timeout,
-                      args.kill_on_timeout, args.stash_log_method)
+    s3_base, _ = get_s3_and_job_prefixes('reading', args.job_name_prefix)
+    bm = BatchMonitor(args.queue_name, job_list, args.job_name_prefix, s3_base)
+    bm.watch_and_wait(args.poll_interval, args.timeout, args.kill_on_timeout,
+                      args.stash_log_method)
