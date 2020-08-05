@@ -14,4 +14,4 @@ def get_s3_and_job_prefixes(job_class, base_name, group_name=None):
         job_base = base_name
     else:
         s3_base, job_base = [group_name + d + base_name for d in ['/', '_']]
-    return f'{job_class}_results/{s3_base}/{job_base}'
+    return f'{job_class}_results/{s3_base}/', job_base
