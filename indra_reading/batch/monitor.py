@@ -289,7 +289,7 @@ class BatchMonitor(object):
                     logger.warning(('Job \'%s\' has not produced output for '
                                     '%d seconds.')
                                    % (job_def['jobName'], check_dt.seconds))
-                    if check_dt.seconds > idle_log_timeout:
+                    if idle_log_timeout and check_dt.seconds > idle_log_timeout:
                         logger.warning("Job \'%s\' has stalled."
                                        % job_def['jobName'])
                         stalled_jobs.add(jid)
