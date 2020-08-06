@@ -132,7 +132,7 @@ class ReadingSubmitter(Submitter):
             used.
         """
         return self.submit_jobs(input_fname, start_ix, end_ix, ids_per_job,
-                                num_tries, stagger)
+                                num_tries=num_tries, stagger=stagger)
 
     def run(self, input_fname, ids_per_job, stagger=0, **wait_params):
         """Run this submission all the way.
