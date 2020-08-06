@@ -21,6 +21,7 @@ class ReadingSubmitter(Submitter):
     compatibility.
     """
     _s3_input_name = NotImplemented
+    job_class = 'reading'
 
     def __init__(self, basename, readers, *args, **kwargs):
         if 'all' in readers:
