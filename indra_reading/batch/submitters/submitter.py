@@ -45,6 +45,9 @@ class Submitter:
     project_name : str
         Jobs on AWS will be tagged with `project` to track which grants pay for
         the jobs.
+    job_timeout : int
+        The maximum number of seconds the job will be allowed to run. This
+        overrides any value defined in the job def config.
     """
     job_class = NotImplemented
 
@@ -57,12 +60,14 @@ class Submitter:
     # as the values.
     _job_def_dict = NotImplemented
 
-    def __init__(self, basename, group_name=None, project_name=None, **options):
+    def __init__(self, basename, group_name=None, project_name=None,
+                 job_timeout=None, **options):
         self.basename = basename
         self.group_name = group_name
         self.s3_base, self.job_base = \
             get_s3_and_job_prefixes(self.job_class, basename, group_name)
         self.project_name = project_name
+        self.job_timeout_override = job_timeout
         self.job_lists = {q_name: [] for q_name in self._job_queue_dict.keys()}
         self.options = options
         self.running = None
@@ -153,6 +158,10 @@ class Submitter:
                     logger.info('Command list: %s' % str(command_list))
 
                     # Submit the job.
+                    kwargs = {}
+                    if self.job_timeout_override is not None:
+                        kwargs['timeout'] = \
+                            {'attemptDurationSeconds': self.job_timeout_override}
                     job_info = batch_client.submit_job(
                         jobName=job_name,
                         jobQueue=job_queue,
@@ -160,7 +169,8 @@ class Submitter:
                         containerOverrides={
                             'environment': environment_vars,
                             'command': command_list},
-                        retryStrategy={'attempts': num_tries}
+                        retryStrategy={'attempts': num_tries},
+                        **kwargs
                     )
 
                     # Record the job id.
