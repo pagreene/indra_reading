@@ -79,9 +79,6 @@ class ReadingSubmitter(Submitter):
             raise TypeError(f'_iter_job_args() takes 2 or 4 positional '
                             f'arguments, but {len(args)} were given')
 
-        # stash this for later.
-        self.ids_per_job = ids_per_job
-
         # Upload the pmid_list to Amazon S3
         id_list_key = self.s3_base + self._s3_input_name
         s3_client = boto3.client('s3')
@@ -96,13 +93,16 @@ class ReadingSubmitter(Submitter):
         if start_ix is None:
             start_ix = 0
 
-        for job_start_ix in range(start_ix, end_ix, ids_per_job):
+        if ids_per_job is None:
+            yield start_ix, end_ix
+        else:
+            for job_start_ix in range(start_ix, end_ix, ids_per_job):
 
-            job_end_ix = job_start_ix + ids_per_job
-            if job_end_ix > end_ix:
-                job_end_ix = end_ix
+                job_end_ix = job_start_ix + ids_per_job
+                if job_end_ix > end_ix:
+                    job_end_ix = end_ix
 
-            yield job_start_ix, job_end_ix
+                yield job_start_ix, job_end_ix
 
     def submit_reading(self, input_fname, start_ix, end_ix, ids_per_job,
                        num_tries=1, stagger=0):
